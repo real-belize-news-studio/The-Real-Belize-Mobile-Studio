@@ -1,0 +1,59 @@
+name: Import Mobile Studio review archive
+on:
+  push:
+    branches:
+      - review/v1.1.0-option-c-import
+    paths:
+      - incoming/real-belize-news-mobile-studio-v1.1.0-option-c-review.zip
+permissions:
+  contents: write
+jobs:
+  import-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out review branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          persist-credentials: true
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Safely unpack uploaded archive
+        run: python scripts/import_review_archive.py --archive incoming/real-belize-news-mobile-studio-v1.1.0-option-c-review.zip --destination app
+      - name: Run static release checks
+        working-directory: app/real-belize-smart-news-studio
+        run: python scripts/validate_release.py
+      - name: Commit imported source to review branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/real-belize-smart-news-studio
+          git commit -m "Import Mobile Studio v1.1.0 Option C review source"
+          git push origin "HEAD:${{ github.ref_name }}"
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Generate dependency lockfile
+        working-directory: app/real-belize-smart-news-studio
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Clean dependency install
+        working-directory: app/real-belize-smart-news-studio
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: TypeScript check
+        working-directory: app/real-belize-smart-news-studio
+        run: npm run typecheck
+      - name: Render Remotion preview frame
+        working-directory: app/real-belize-smart-news-studio
+        run: npm run build:preview
+      - name: Commit lockfile after successful validation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/real-belize-smart-news-studio/package-lock.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Add validated Mobile Studio dependency lockfile"
+            git push origin "HEAD:${{ github.ref_name }}"
+          fi
