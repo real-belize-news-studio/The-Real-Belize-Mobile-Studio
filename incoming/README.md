@@ -1,0 +1,1 @@
+Upload the exact review ZIP here using GitHub's web file picker. See UPLOAD_GUIDE.md. Do not upload secrets or private newsroom data.

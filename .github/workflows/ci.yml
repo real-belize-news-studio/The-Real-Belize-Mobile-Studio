@@ -1,0 +1,46 @@
+name: Mobile Studio validation
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: ["review/**"]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Detect imported application
+        id: app
+        run: |
+          if [ -f app/real-belize-smart-news-studio/package.json ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "Application source not imported yet; repository documentation checks only."
+          fi
+      - uses: actions/setup-node@v4
+        if: steps.app.outputs.present == 'true'
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        if: steps.app.outputs.present == 'true'
+        with:
+          python-version: '3.11'
+      - name: Static package checks
+        if: steps.app.outputs.present == 'true'
+        working-directory: app/real-belize-smart-news-studio
+        run: python scripts/validate_release.py
+      - name: Install JavaScript dependencies
+        if: steps.app.outputs.present == 'true'
+        working-directory: app/real-belize-smart-news-studio
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: TypeScript check
+        if: steps.app.outputs.present == 'true'
+        working-directory: app/real-belize-smart-news-studio
+        run: npm run typecheck
+      - name: Render Remotion preview frame
+        if: steps.app.outputs.present == 'true'
+        working-directory: app/real-belize-smart-news-studio
+        run: npm run build:preview
